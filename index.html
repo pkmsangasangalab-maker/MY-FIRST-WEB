@@ -2465,15 +2465,46 @@ html:has(body[data-view="stok"]),html:has(body[data-view="hari"]){background:#06
 <script>
   // ===== PENGATURAN SUMBER DATA (satu-satunya tempat ID spreadsheet) =====
   // Ubah nilai di sini bila sheet pindah atau tahun baru ditambahkan.
-  window.PCFG = {https://script.google.com/macros/s/AKfycbw4iCZPc6m9vTz84P9N1kTWzl8ZWyLAHrlKw0iTlNbvokeVbu0xAZzMzmI-36PZWIclyg/exec}
+  window.PCFG = {
     ringkasan:  { id: '1K332LzWdG6W4S7eOYeVjq2rZHHgtEnR9-bqdUOObHHA', gid: '1810939200' },           // Laporan Tahunan Lab
     stok:       { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg' },                          // Stok reagensia (tab BUFFER, dll.)
     kelurahan:  { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', tab: 'REKAP KELURAHAN' },    // Tren per kelurahan
     hari:       { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', tahun: 2026 },              // Pemeriksaan per hari (tab LAB JAN–DES)
     mutu:       { id: '1kvkQXjqyGytj7MSHAz_a6zoznmHKAITRkXrtV5lWMlc', gid: '632273053', baik: 95, target: 80 }, // Waktu tunggu
-    expHariDefault: 90
+    expHariDefault: 90,
+    endpoint: 'https://script.google.com/macros/s/AKfycbyxY0Wal32nRDXZSiaiQXGFflv2j6VbPfkW6ez9SBk5/exec'   // URL web app Apps Script (deployment Anyone)
   };
 </script>
+<script>
+  // ===== Terapkan pengaturan dari sheet PENGATURAN (dipanggil oleh JSONP di bawah) =====
+  (function(){
+    var KEYS=['ringkasan.id','ringkasan.gid','stok.id','kelurahan.id','kelurahan.tab','hari.id','hari.tahun','mutu.id','mutu.gid','mutu.baik','mutu.target','expHariDefault'];
+    var NUM=/(tahun|baik|target|expHariDefault)$/;
+    window.PCFG_KEYS=KEYS;
+    window.pcfgSet=function(k,v){
+      var parts=k.split('.'), o=PCFG;
+      for(var i=0;i<parts.length-1;i++){ o=o[parts[i]]; if(!o) return; }
+      o[parts[parts.length-1]]=v;
+    };
+    window.pcfgGet=function(k){
+      return k.split('.').reduce(function(o,x){return o==null?o:o[x];},PCFG);
+    };
+    window.pcfgApply=function(r){
+      if(!r||!r.ok||!r.settings) return;
+      KEYS.forEach(function(k){
+        var v=r.settings[k];
+        if(v===undefined||v===null||String(v).trim()==='') return;
+        v = NUM.test(k) ? Number(v) : String(v).trim();
+        if(NUM.test(k) && isNaN(v)) return;
+        pcfgSet(k,v);
+      });
+    };
+  })();
+</script>
+<script>
+  // Pengaturan dimuat sebelum skrip data (blocking). Bila gagal, nilai default tetap dipakai.
+</script>
+<script src="https://script.google.com/macros/s/AKfycbyxY0Wal32nRDXZSiaiQXGFflv2j6VbPfkW6ez9SBk5/exec?callback=pcfgApply" onerror="console.warn('Pengaturan sheet tidak dimuat, memakai nilai default.')"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // Tema grafik: warna, font, dan garis bantu mengikuti tema aktif (Keramik / Biru).
@@ -4030,6 +4061,88 @@ var PANDUAN = [
   var nav=document.querySelector('[data-nav="hari"]');
   if(nav)nav.addEventListener('click',function(){ if(!DAYS)load(); setTimeout(function(){render();window.dispatchEvent(new Event('resize'));},150); });
   window.__hariParse=parseBulan; window.__hariCsv=csv;
+})();
+</script>
+
+<button type="button" id="pengBtn" class="staff-only" onclick="pengOpen()" style="position:fixed;left:16px;bottom:16px;z-index:1500;padding:10px 14px;border-radius:12px;border:1px solid rgba(15,107,82,.4);background:#fff;color:#0f6b52;font-weight:600;box-shadow:0 8px 20px rgba(0,0,0,.2);cursor:pointer">⚙ Pengaturan Sumber Data</button>
+<div id="pengModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;color:#111;max-width:680px;width:100%;max-height:90vh;overflow:auto;border-radius:16px;padding:20px;box-sizing:border-box">
+    <h3 style="margin:0 0 8px">Pengaturan Sumber Data</h3>
+    <div id="pengLogin">
+      <p style="font-size:.9rem;margin:0 0 8px">Khusus admin. Masukkan kata sandi admin.</p>
+      <input type="password" id="pengPw" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:8px" onkeydown="if(event.key==='Enter')pengLogin()">
+      <button type="button" onclick="pengLogin()" style="padding:8px 14px;cursor:pointer">Masuk</button>
+    </div>
+    <div id="pengForm" style="display:none"></div>
+    <p id="pengMsg" style="font-size:.85rem;margin:10px 0 0;color:#b91c1c"></p>
+    <div style="margin-top:12px;text-align:right"><button type="button" onclick="pengClose()" style="padding:8px 14px;cursor:pointer">Tutup</button></div>
+  </div>
+</div>
+<script>
+(function(){
+  var FIELDS=[
+    ['ringkasan.id','Laporan Tahunan: ID spreadsheet'],['ringkasan.gid','Laporan Tahunan: GID tab'],
+    ['stok.id','Stok reagensia: ID spreadsheet'],
+    ['kelurahan.id','Tren kelurahan: ID spreadsheet'],['kelurahan.tab','Tren kelurahan: nama tab'],
+    ['hari.id','Pemeriksaan per hari: ID spreadsheet'],['hari.tahun','Pemeriksaan per hari: tahun'],
+    ['mutu.id','Waktu tunggu: ID spreadsheet'],['mutu.gid','Waktu tunggu: GID tab'],
+    ['mutu.baik','Waktu tunggu: nilai baik (%)'],['mutu.target','Waktu tunggu: target (%)'],
+    ['expHariDefault','Peringatan kedaluwarsa reagen (hari)']
+  ];
+  var pw='';
+  function msg(t,ok){var m=document.getElementById('pengMsg');m.textContent=t;m.style.color=ok?'#0f6b52':'#b91c1c';}
+  function hashPw(){return sha256('pengaturan:'+pw);}
+  // Semua permintaan lewat <script> (JSONP) agar tidak terkena pembatasan CORS.
+  function send(updates){
+    return new Promise(function(resolve,reject){
+      var cb='pengCb_'+Date.now()+'_'+Math.floor(Math.random()*1e6);
+      var sc=document.createElement('script');
+      var timer=setTimeout(function(){cleanup();reject(new Error('timeout'));},20000);
+      function cleanup(){clearTimeout(timer);try{delete window[cb];}catch(e){window[cb]=undefined;}if(sc.parentNode)sc.parentNode.removeChild(sc);}
+      window[cb]=function(data){cleanup();resolve(data);};
+      sc.onerror=function(){cleanup();reject(new Error('load'));};
+      sc.src=PCFG.endpoint+'?action=save&hash='+encodeURIComponent(hashPw())+
+        '&updates='+encodeURIComponent(JSON.stringify(updates))+'&callback='+cb;
+      document.body.appendChild(sc);
+    });
+  }
+  window.pengOpen=function(){document.getElementById('pengModal').style.display='flex';};
+  window.pengClose=function(){document.getElementById('pengModal').style.display='none';};
+  window.pengLogin=function(){
+    pw=document.getElementById('pengPw').value;
+    if(!pw){msg('Kata sandi wajib diisi.');return;}
+    msg('Memeriksa...',true);
+    send({}).then(function(j){
+      if(!j.ok){msg(j.error||'Gagal.');return;}
+      msg('',true);
+      document.getElementById('pengLogin').style.display='none';
+      buildForm();
+    }).catch(function(){msg('Tidak bisa terhubung ke Apps Script. Periksa URL web app dan izin akses "Anyone".');});
+  };
+  function buildForm(){
+    var f=document.getElementById('pengForm');
+    var h='<p style="font-size:.85rem;margin:0 0 10px">Setelah disimpan, muat ulang halaman agar berlaku untuk semua pengunjung.</p>';
+    FIELDS.forEach(function(x){
+      var v=pcfgGet(x[0]);
+      h+='<label style="display:block;font-size:.85rem;margin-bottom:8px">'+x[1]+
+         '<input data-k="'+x[0]+'" value="'+String(v==null?'':v).replace(/"/g,'&quot;')+'" style="width:100%;padding:7px;box-sizing:border-box;margin-top:3px"></label>';
+    });
+    h+='<button type="button" onclick="pengSave()" style="padding:8px 14px;cursor:pointer;background:#0f6b52;color:#fff;border:0;border-radius:8px">Simpan ke sheet</button>';
+    f.innerHTML=h; f.style.display='block';
+  }
+  window.pengSave=function(){
+    var updates={};
+    document.querySelectorAll('#pengForm input[data-k]').forEach(function(i){updates[i.getAttribute('data-k')]=i.value.trim();});
+    msg('Menyimpan...',true);
+    send(updates).then(function(j){
+      if(!j.ok){msg(j.error||'Gagal menyimpan.');return;}
+      Object.keys(updates).forEach(function(k){
+        var v=updates[k]; if(/(tahun|baik|target|expHariDefault)$/.test(k)) v=Number(v);
+        pcfgSet(k,v);
+      });
+      msg('Tersimpan. Muat ulang halaman (F5) agar berlaku.',true);
+    }).catch(function(){msg('Gagal terhubung ke Apps Script.');});
+  };
 })();
 </script>
 </body>
