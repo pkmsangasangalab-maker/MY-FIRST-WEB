@@ -2462,6 +2462,18 @@ html:has(body[data-view="stok"]),html:has(body[data-view="hari"]){background:#06
   </script>
 
 
+<script>
+  // ===== PENGATURAN SUMBER DATA (satu-satunya tempat ID spreadsheet) =====
+  // Ubah nilai di sini bila sheet pindah atau tahun baru ditambahkan.
+  window.PCFG = {https://script.google.com/macros/s/AKfycbw4iCZPc6m9vTz84P9N1kTWzl8ZWyLAHrlKw0iTlNbvokeVbu0xAZzMzmI-36PZWIclyg/exec}
+    ringkasan:  { id: '1K332LzWdG6W4S7eOYeVjq2rZHHgtEnR9-bqdUOObHHA', gid: '1810939200' },           // Laporan Tahunan Lab
+    stok:       { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg' },                          // Stok reagensia (tab BUFFER, dll.)
+    kelurahan:  { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', tab: 'REKAP KELURAHAN' },    // Tren per kelurahan
+    hari:       { id: '1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', tahun: 2026 },              // Pemeriksaan per hari (tab LAB JAN–DES)
+    mutu:       { id: '1kvkQXjqyGytj7MSHAz_a6zoznmHKAITRkXrtV5lWMlc', gid: '632273053', baik: 95, target: 80 }, // Waktu tunggu
+    expHariDefault: 90
+  };
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // Tema grafik: warna, font, dan garis bantu mengikuti tema aktif (Keramik / Biru).
@@ -2504,7 +2516,7 @@ html:has(body[data-view="stok"]),html:has(body[data-view="hari"]){background:#06
 <script>
 (function(){
   // Sumber data: sheet LAPORAN TAHUNAN LAB (harus bisa dilihat siapa pun yang punya link)
-  var SHEET_ID='1K332LzWdG6W4S7eOYeVjq2rZHHgtEnR9-bqdUOObHHA', GID='1810939200';
+  var SHEET_ID=PCFG.ringkasan.id, GID=PCFG.ringkasan.gid;
   var CSV_URL='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&gid='+GID;
   // Cadangan (snapshot) bila sheet gagal dimuat
   var YEARS=[2017,2018,2019,2020,2021,2022,2023,2024,2025];
@@ -2839,7 +2851,7 @@ var PANDUAN = [
 <script>
 // Stok reagensia: dibaca langsung dari Google Sheets (sheet harus bisa dilihat siapa pun yang punya link)
 (function(){
-  var SID='1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg';
+  var SID=PCFG.stok.id;
   var URL_SHEET='https://docs.google.com/spreadsheets/d/'+SID+'/edit';
   // Aturan order mengikuti sheet: kolom "Keterangan" = ORDER bila stok akhir <= buffer stok (tab BUFFER).
   var $=function(i){return document.getElementById(i);}, bulan=[], loaded=false, timer=null;
@@ -3152,7 +3164,7 @@ var PANDUAN = [
   // ----- Peringatan expired: mengikuti kolom "Peringatan expired" di tab STOK OPNAME -----
   // Tanggal expired = baris penerimaan (Masuk) terakhir sampai akhir bulan; bila kosong dipakai kolom Expired di MASTER REAGEN.
   // KEDALUWARSA bila lewat hari ini, SEGERA ED bila tinggal <= EXP_HARI hari (nilai dari sel B4 tab PETUNJUK, bawaan 90).
-  var EXP_HARI=90, SHORT_BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var EXP_HARI=PCFG.expHariDefault, SHORT_BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   function tglEd(s){
     var t=tglRow(s);
     if(!t){var m=/^\s*(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(s||'')); if(m)t={y:+m[1],m:+m[2],d:+m[3]};}
@@ -3263,8 +3275,8 @@ var PANDUAN = [
 <script>
 // ===== Indikator Mutu Lab: Waktu Tunggu (1 Google Sheet, tahun dinamis) =====
 (function(){
-  var SHEET_ID='1kvkQXjqyGytj7MSHAz_a6zoznmHKAITRkXrtV5lWMlc', GID='632273053';
-  var BAIK=95, TARGET=80;
+  var SHEET_ID=PCFG.mutu.id, GID=PCFG.mutu.gid;
+  var BAIK=PCFG.mutu.baik, TARGET=PCFG.mutu.target;
   var BLN=['JANUARI','FEBRUARI','MARET','APRIL','MEI','JUNI','JULI','AGUSTUS','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER'];
   var SHORT=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   var PAL=['#6f9fbd','#c99a52','#b3a187','#34d399','#f472b6','#fb923c','#60a5fa','#e879f9'];
@@ -3491,7 +3503,7 @@ var PANDUAN = [
 <script>
 // ===== Tren pemeriksaan per kelurahan (Google Sheets, tab "REKAP KELURAHAN") =====
 (function(){
-  var SID='1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', TAB='REKAP KELURAHAN';
+  var SID=PCFG.kelurahan.id, TAB=PCFG.kelurahan.tab;
   var URL_SHEET='https://docs.google.com/spreadsheets/d/'+SID+'/edit';
   // Tahun yang belum penuh: jumlah bulan yang sudah terisi. Label di sheet (mis. "JANUARI-SEPTEMBER") otomatis diutamakan.
   var BULAN_TERISI={2026:9};
@@ -3893,7 +3905,7 @@ var PANDUAN = [
 <script>
 // ===== Pemeriksaan berdasarkan hari: dibaca dari tab LAB JAN–DES (baris "Total harian") =====
 (function(){
-  var SID='1axwil6eYFLv8OPg44DwEL0SHawrB5r_tdzWnhR78clg', TAHUN=2026;
+  var SID=PCFG.hari.id, TAHUN=PCFG.hari.tahun;
   var BLN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   var KODE=['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES'];
   var URUT=[1,2,3,4,5,6,0]; // Senin..Minggu (getDay: 0=Minggu)
